@@ -1095,15 +1095,88 @@ function togMan(){
 
 // ── INIT ─────────────────────────────────
 // ─── SYNC VIA CORSPROXY ──────────────────────────────────────
-const SHEET = 'https://script.google.com/macros/s/AKfycby8untRQ5dYMqUsZXfSnAhITPceGF3Yds-4rPraDQDNbUYfQrCW6hJ5NtHXxVG60Val/exec';
-const PROXIES = [
-  'https://corsproxy.io/?',
-  'https://api.allorigins.win/raw?url=',
-  'https://proxy.cors.sh/',
-  'https://crossorigin.me/'
-];
-let proxyIdx = 0;
-function getProxy(){ return PROXIES[proxyIdx % PROXIES.length]; }
+const SHEET = 'https://script.google.com/macros/s/AKfycbyx9GaRyH2Qxbpi935JHC4o4ILVDU88SAuYc487SUdqUDQLLDM3WvTRRLksYhu8cugf/exec';
+const SHEET = 'https://script.google.com/macros/s/AKfycbyx9GaRyH2Qxbpi935JHC4o4ILVDU88SAuYc487SUdqUDQLLDM3WvTRRLksYhu8cugf/exec';
+
+function setSyncSt(m,c){
+  const e=document.getElementById('syncSt');
+  if(e){e.textContent=m;e.style.color=c||'var(--tx3)';}
+  console.log('[Sync]',m);
+}
+
+function fixMatch(m){
+  return {...m,
+    ts:typeof m.ts==='string'&&m.ts.includes('T')?new Date(m.ts).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}):m.ts||'',
+    id:Number(m.id)
+  };
+}
+
+function sheetURL(params){
+  return SHEET+(params?'?'+params:'');
+}
+
+// JSONP — läuft ohne CORS, ohne Proxy, ohne Adblocker-Probleme
+function loadFromSheet(){
+  setSyncSt('Lade Daten...','var(--yl)');
+  const old=document.getElementById('_jsonp_load');
+  if(old)old.remove();
+  window._sheetLoad=function(data){
+    try{
+      if(data.matches&&data.matches.length>0){
+        matches=data.matches.map(fixMatch).sort((a,b)=>b.id-a.id);
+        save();render();
+        setSyncSt('✓ '+matches.length+' Matches geladen','var(--gr)');
+      }else{
+        setSyncSt('Noch keine Matches','var(--tx3)');
+        render();
+      }
+    }catch(e){setSyncSt('Fehler: '+e.message,'var(--rd)');}
+  };
+  const s=document.createElement('script');
+  s.id='_jsonp_load';
+  s.src=SHEET+'?callback=_sheetLoad&t='+Date.now();
+  s.onerror=()=>setSyncSt('Ladefehler','var(--rd)');
+  document.head.appendChild(s);
+}
+
+function syncAdd(match){
+  const p=new URLSearchParams({action:'add',data:JSON.stringify(match),callback:'_noop'});
+  const s=document.createElement('script');
+  s.src=SHEET+'?'+p+'&t='+Date.now();
+  s.onload=()=>{setSyncSt('✓ Gespeichert · '+new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}),'var(--gr)');s.remove();};
+  s.onerror=()=>{setSyncSt('⚠ Sync fehlgeschlagen','var(--yl)');s.remove();};
+  document.head.appendChild(s);
+}
+
+function syncDelete(id){
+  const p=new URLSearchParams({action:'delete',id:String(id),callback:'_noop'});
+  const s=document.createElement('script');
+  s.src=SHEET+'?'+p+'&t='+Date.now();
+  s.onload=()=>s.remove();s.onerror=()=>s.remove();
+  document.head.appendChild(s);
+}
+
+window._noop=function(){};
+
+async function exportAllToSheet(){
+  if(!matches.length){setSyncSt('Keine lokalen Matches','var(--rd)');return;}
+  setSyncSt('Exportiere '+matches.length+' Matches...','var(--yl)');
+  let done=0;
+  for(const m of [...matches].reverse()){
+    await new Promise(resolve=>{
+      const p=new URLSearchParams({action:'add',data:JSON.stringify(m),callback:'_noop'});
+      const s=document.createElement('script');
+      s.src=SHEET+'?'+p+'&t='+Date.now();
+      s.onload=()=>{done++;setSyncSt('Exportiere... '+done+'/'+matches.length,'var(--yl)');s.remove();resolve();};
+      s.onerror=()=>{s.remove();resolve();};
+      document.head.appendChild(s);
+      setTimeout(resolve,3000);
+    });
+    await new Promise(r=>setTimeout(r,400));
+  }
+  setSyncSt('✓ '+done+' Matches exportiert!','var(--gr)');
+}
+
 
 function saveSheetURL(){
   const v=document.getElementById('sheetUrlInp');
