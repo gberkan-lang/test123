@@ -1114,18 +1114,18 @@ function loadFromSheet(){
   fetch(SHEET_JSON)
     .then(r=>r.text())
     .then(txt=>{
-      // Google wraps response in /*O_o*/\ngoogle.visualization.Query.setResponse(...)
-      const json=JSON.parse(txt.replace(/^[^\(]+\(/, '').replace(/\);?$/, ''));
+      // Strip Google's wrapper: /*O_o*/\ngoogle.visualization.Query.setResponse({...});
+      const clean=txt.replace(/\/\*.*?\*\//,'').trim().replace(/^google\.visualization\.Query\.setResponse\(/,'').replace(/\);?\s*$/,'');
+      const json=JSON.parse(clean);
       const cols=json.table.cols.map(c=>c.label);
       const rows=json.table.rows||[];
       matches=rows.map(row=>{
         const obj={};
         cols.forEach((col,i)=>{
-          const cell=row.c[i];
-          obj[col]=cell?cell.v:null;
+          const cell=row.c&&row.c[i];
+          obj[col]=cell!=null?cell.v:null;
         });
-        // parse playerStats JSON string
-        try{obj.playerStats=JSON.parse(obj.playerStats||'[]');}catch{obj.playerStats=[];}
+        try{obj.playerStats=JSON.parse(obj.playerStats||'[]');}catch(e){obj.playerStats=[];}
         obj.id=Number(obj.id);
         obj.ts=fixTS(obj.ts);
         return obj;
