@@ -1202,34 +1202,9 @@ function fixMatch(m){
 
 function loadFromSheet(){
   setSyncSt('Lade Daten...','var(--yl)');
-  tryLoadWithProxy(0);
 }
 
-function tryLoadWithProxy(idx){
-  if(idx>=PROXIES.length){
-    setSyncSt('Alle Proxies fehlgeschlagen — zeige lokale Daten','var(--yl)');
-    render(); return;
-  }
-  const u=PROXIES[idx]+encodeURIComponent(SHEET);
-  fetch(u)
-    .then(r=>{
-      if(!r.ok) throw new Error('HTTP '+r.status);
-      return r.text();
-    })
-    .then(txt=>{
-      const data=JSON.parse(txt);
-      if(data.matches&&data.matches.length>0){
-        proxyIdx=idx;
-        matches=data.matches.map(fixMatch).sort((a,b)=>b.id-a.id);
-        save();render();
-        setSyncSt('✓ '+matches.length+' Matches geladen','var(--gr)');
-      } else {
-        setSyncSt('Keine Matches in Sheet','var(--tx3)');
-        render();
-      }
-    })
-    .catch(()=>tryLoadWithProxy(idx+1));
-}
+
 
 function syncAdd(match){
   const p=new URLSearchParams({action:'add',data:JSON.stringify(match)});
