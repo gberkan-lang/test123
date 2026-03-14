@@ -1098,6 +1098,12 @@ function togMan(){
 const SHEET = 'https://script.google.com/macros/s/AKfycby8untRQ5dYMqUsZXfSnAhITPceGF3Yds-4rPraDQDNbUYfQrCW6hJ5NtHXxVG60Val/exec';
 const PROXY = 'https://api.allorigins.win/raw?url=';
 
+function saveSheetURL(){
+  const v=document.getElementById('sheetUrlInp');
+  if(v) v.value='';
+  setSyncSt('Nicht nötig — Sync läuft automatisch','var(--gr)');
+}
+
 function setSyncSt(m,c){
   const e=document.getElementById('syncSt');
   if(e){e.textContent=m;e.style.color=c||'var(--tx3)';}
