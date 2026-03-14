@@ -1094,43 +1094,55 @@ function togMan(){
 }
 
 // ── INIT ─────────────────────────────────
-// ─── DATABASE SYNC ───────────────────────────────────────────
+// ─── SYNC VIA CORSPROXY ──────────────────────────────────────
+const SHEET = 'https://script.google.com/macros/s/AKfycby8untRQ5dYMqUsZXfSnAhITPceGF3Yds-4rPraDQDNbUYfQrCW6hJ5NtHXxVG60Val/exec';
+const PROXY = 'https://corsproxy.io/?';
+
 function setSyncSt(m,c){
   const e=document.getElementById('syncSt');
   if(e){e.textContent=m;e.style.color=c||'var(--tx3)';}
-  console.log('[DB]',m);
+  console.log('[Sync]',m);
+}
+
+function sheetURL(params){
+  const u=SHEET+(params?'?'+params:'');
+  return PROXY+encodeURIComponent(u);
+}
+
+function fixMatch(m){
+  return {...m,
+    ts:typeof m.ts==='string'&&m.ts.includes('T')?new Date(m.ts).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}):m.ts||'',
+    id:Number(m.id)
+  };
 }
 
 function loadFromSheet(){
   setSyncSt('Lade Daten...','var(--yl)');
-  fetch('/.netlify/functions/matches-get')
+  fetch(sheetURL())
     .then(r=>r.json())
     .then(data=>{
-      if(data.matches){
-        matches=data.matches.sort((a,b)=>Number(b.id)-Number(a.id));
+      if(data.matches&&data.matches.length>0){
+        matches=data.matches.map(fixMatch).sort((a,b)=>b.id-a.id);
         save();render();
         setSyncSt('✓ '+matches.length+' Matches geladen','var(--gr)');
+      } else {
+        setSyncSt('Keine Matches in Sheet','var(--tx3)');
+        render();
       }
     })
     .catch(e=>{setSyncSt('Ladefehler: '+e.message,'var(--rd)');render();});
 }
 
 function syncAdd(match){
-  fetch('/.netlify/functions/matches-post',{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({action:'add',match})
-  })
-  .then(()=>setSyncSt('✓ Match gespeichert · '+new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}),'var(--gr)'))
-  .catch(()=>setSyncSt('⚠ Sync fehlgeschlagen (lokal OK)','var(--yl)'));
+  const p=new URLSearchParams({action:'add',data:JSON.stringify(match)});
+  fetch(sheetURL(p.toString()))
+    .then(()=>setSyncSt('✓ Gespeichert · '+new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}),'var(--gr)'))
+    .catch(()=>setSyncSt('⚠ Sync fehlgeschlagen','var(--yl)'));
 }
 
 function syncDelete(id){
-  fetch('/.netlify/functions/matches-post',{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({action:'delete',id})
-  }).catch(e=>console.error(e));
+  const p=new URLSearchParams({action:'delete',id:String(id)});
+  fetch(sheetURL(p.toString())).catch(e=>console.error(e));
 }
 
 async function exportAllToSheet(){
@@ -1139,14 +1151,12 @@ async function exportAllToSheet(){
   let done=0;
   for(const m of [...matches].reverse()){
     try{
-      await fetch('/.netlify/functions/matches-post',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({action:'add',match:m})
-      });
+      const p=new URLSearchParams({action:'add',data:JSON.stringify(m)});
+      await fetch(sheetURL(p.toString()));
       done++;
       setSyncSt('Exportiere... '+done+'/'+matches.length,'var(--yl)');
     }catch(e){console.error(e);}
+    await new Promise(r=>setTimeout(r,300));
   }
   setSyncSt('✓ '+done+' Matches exportiert!','var(--gr)');
 }
