@@ -2,6 +2,7 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:;">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>team_bekko · LAN WEEKEND</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
@@ -1133,7 +1134,8 @@ function loadFromSheet(){
   const s=document.createElement('script');
   s.id='_jsonp_load';
   s.src=SHEET+'?callback=_sheetLoad&t='+Date.now();
-  s.onerror=()=>setSyncSt('Ladefehler','var(--rd)');
+  s.onerror=(e)=>{setSyncSt('Ladefehler — CSP/Netzwerk','var(--rd)');console.error('JSONP load error',e);}; 
+  setTimeout(()=>{if(document.getElementById('_jsonp_load'))setSyncSt('Timeout — Script nicht geladen','var(--rd)');},8000);
   document.head.appendChild(s);
 }
 
