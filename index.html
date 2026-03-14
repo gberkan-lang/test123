@@ -595,92 +595,145 @@ function getPS(){
 // ── RENDER ────────────────────────────────
 function renderLastMatch(){
   const el=document.getElementById('lastMatchFull');
-  if(!el||!matches.length){if(el)el.innerHTML='<div style="padding:20px;text-align:center;color:var(--tx3);font-family:var(--fm);font-size:10px;letter-spacing:2px">KEIN MATCH</div>';return;}
+  if(!el||!matches.length){
+    if(el)el.innerHTML='<div style="padding:40px;text-align:center;color:var(--tx3);font-family:var(--fm);font-size:10px;letter-spacing:2px">KEIN MATCH VORHANDEN</div>';
+    return;
+  }
   const m=matches[0];
   const pl=(m.playerStats||[]).filter(p=>p.team==='ours');
-  const allpl=(m.playerStats||[]);
   const rc=m.result==='win'?'var(--gr)':m.result==='loss'?'var(--rd)':'var(--yl)';
-  const rb=m.result==='win'?'rgba(46,255,138,.08)':m.result==='loss'?'rgba(255,61,90,.06)':'rgba(255,204,51,.06)';
+  const rb=m.result==='win'?'rgba(46,255,138,.06)':m.result==='loss'?'rgba(255,61,90,.05)':'rgba(255,204,51,.05)';
 
-  // Build player rows - all 5 of ours
+  // Team total stats
+  const totalK=pl.reduce((a,p)=>a+(p.kills||0),0);
+  const totalD=pl.reduce((a,p)=>a+(p.deaths||0),0);
+  const totalA=pl.reduce((a,p)=>a+(p.assists||0),0);
+  const avgADR=pl.length?Math.round(pl.reduce((a,p)=>a+(p.adr||0),0)/pl.length):0;
+  const avgHS=pl.length?Math.round(pl.reduce((a,p)=>a+(p.hs_pct||0),0)/pl.length):0;
+  const totalAces=pl.reduce((a,p)=>a+(p.k5||0),0);
+  const total4k=pl.reduce((a,p)=>a+(p.k4||0),0);
+  const total3k=pl.reduce((a,p)=>a+(p.k3||0),0);
+
   const plRows=pl.length?pl.map(p=>{
     const kd=(p.kd||p.kills/Math.max(p.deaths,1)||0).toFixed(2);
     const kdc=parseFloat(kd)>=1.3?'var(--gr)':parseFloat(kd)>=1.0?'var(--yl)':parseFloat(kd)>=0.8?'var(--tx)':'var(--rd)';
     const mvp=m.mvp===p.name;
-    const adrBar=Math.min(Math.round((p.adr||0)/150*100),100);
-    return`<div style="display:grid;grid-template-columns:110px 50px 50px 50px 50px 50px 50px 50px 1fr;align-items:center;gap:0;padding:8px 14px;background:${mvp?'rgba(255,85,0,.06)':'var(--bg4)'};border-left:3px solid ${mvp?'var(--o)':'transparent'};border-bottom:1px solid var(--bd)">
-      <div style="font-family:var(--fu);font-size:13px;font-weight:600;color:${mvp?'var(--o)':'var(--tx)'}">
-        ${mvp?'⭐ ':''}${p.name}
+    const adrPct=Math.min(Math.round((p.adr||0)/160*100),100);
+    const hsPct=Math.min(p.hs_pct||0,100);
+    return`<div style="display:grid;grid-template-columns:1fr 52px 36px 36px 36px 56px 52px 52px 52px 52px;align-items:center;padding:10px 16px;background:${mvp?'rgba(255,85,0,.07)':'transparent'};border-left:3px solid ${mvp?'var(--o)':'transparent'};border-bottom:1px solid rgba(42,42,50,.6);transition:background .15s" onmouseover="this.style.background='${mvp?'rgba(255,85,0,.1)':'rgba(255,255,255,.02)'}'" onmouseout="this.style.background='${mvp?'rgba(255,85,0,.07)':'transparent'}'">
+      <div>
+        <div style="font-family:var(--fu);font-size:13px;font-weight:700;color:${mvp?'var(--o)':'var(--tx)'};display:flex;align-items:center;gap:6px">
+          ${mvp?'<span style="font-size:11px">⭐</span>':''}${p.name}
+          ${mvp?'<span style="font-family:var(--fm);font-size:8px;color:var(--o);letter-spacing:1.5px;background:rgba(255,85,0,.15);padding:1px 5px">MVP</span>':''}
+        </div>
         ${p.rank_elo?`<div style="font-family:var(--fm);font-size:9px;color:var(--tx3);margin-top:1px">ELO ${p.rank_elo}</div>`:''}
       </div>
-      <div style="font-family:var(--fh);font-size:18px;color:${kdc};text-align:center">${kd}</div>
-      <div style="font-family:var(--fm);font-size:12px;color:var(--tx);text-align:center">${p.kills}</div>
-      <div style="font-family:var(--fm);font-size:12px;color:var(--rd);text-align:center">${p.deaths}</div>
-      <div style="font-family:var(--fm);font-size:12px;color:var(--tx2);text-align:center">${p.assists}</div>
-      <div style="font-family:var(--fh);font-size:16px;color:var(--o);text-align:center">${p.adr||'—'}</div>
-      <div style="font-family:var(--fm);font-size:11px;color:var(--yl);text-align:center">${p.hs_pct||'—'}%</div>
+      <div style="font-family:var(--fh);font-size:22px;color:${kdc};text-align:center;letter-spacing:1px">${kd}</div>
+      <div style="font-family:var(--fm);font-size:13px;color:var(--gr);text-align:center;font-weight:600">${p.kills}</div>
+      <div style="font-family:var(--fm);font-size:13px;color:var(--rd);text-align:center">${p.deaths}</div>
+      <div style="font-family:var(--fm);font-size:13px;color:var(--tx2);text-align:center">${p.assists}</div>
+      <div>
+        <div style="font-family:var(--fh);font-size:16px;color:var(--o);text-align:center">${p.adr||'—'}</div>
+        <div style="margin-top:3px;height:3px;background:var(--bd);overflow:hidden;border-radius:1px"><div style="width:${adrPct}%;height:100%;background:var(--o)"></div></div>
+      </div>
+      <div>
+        <div style="font-family:var(--fm);font-size:12px;color:var(--yl);text-align:center">${p.hs_pct||'—'}%</div>
+        <div style="margin-top:3px;height:3px;background:var(--bd);overflow:hidden;border-radius:1px"><div style="width:${hsPct}%;height:100%;background:var(--yl)"></div></div>
+      </div>
       <div style="font-family:var(--fm);font-size:11px;color:var(--tx2);text-align:center">${p.rws||'—'}</div>
-      <div style="padding-left:8px">
-        <div style="height:4px;background:var(--bd);overflow:hidden"><div style="width:${adrBar}%;height:100%;background:var(--o)"></div></div>
-        <div style="font-family:var(--fm);font-size:8px;color:var(--tx3);margin-top:2px">${p.k4?p.k4+'×4K ':''}${p.k3?p.k3+'×3K ':''}${p.k2?p.k2+'×2K':''}</div>
+      <div style="font-family:var(--fm);font-size:11px;color:var(--tx2);text-align:center">${p.kr||'—'}</div>
+      <div style="text-align:center">
+        ${p.k5?`<span style="font-family:var(--fm);font-size:9px;color:var(--acc,#e8ff3c);background:rgba(232,255,60,.1);padding:1px 4px;margin:1px;display:inline-block">${p.k5}×ACE</span>`:''}
+        ${p.k4?`<span style="font-family:var(--fm);font-size:9px;color:var(--bl);background:rgba(61,224,255,.08);padding:1px 4px;margin:1px;display:inline-block">${p.k4}×4K</span>`:''}
+        ${p.k3?`<span style="font-family:var(--fm);font-size:9px;color:var(--tx2);padding:1px 4px;margin:1px;display:inline-block">${p.k3}×3K</span>`:''}
       </div>
     </div>`;
   }).join(''):'';
 
-  const halvesHTML=m.first_half_ours!=null?`
-    <div style="display:flex;gap:0;border-top:1px solid var(--bd)">
-      <div style="flex:1;padding:8px 14px;border-right:1px solid var(--bd);font-family:var(--fm);font-size:10px;color:var(--tx3);letter-spacing:1px">
-        1ST HALF <span style="color:var(--tx);font-size:13px;font-family:var(--fh)">${m.first_half_ours}:${m.first_half_theirs}</span>
-      </div>
-      <div style="flex:1;padding:8px 14px;border-right:1px solid var(--bd);font-family:var(--fm);font-size:10px;color:var(--tx3);letter-spacing:1px">
-        2ND HALF <span style="color:var(--tx);font-size:13px;font-family:var(--fh)">${m.second_half_ours??'?'}:${m.second_half_theirs??'?'}</span>
-      </div>
-      ${m.team_avg_elo?`<div style="flex:1;padding:8px 14px;border-right:1px solid var(--bd);font-family:var(--fm);font-size:10px;color:var(--tx3);letter-spacing:1px">
-        TEAM ELO <span style="color:var(--tx);font-size:12px;font-family:var(--fh)">${m.team_avg_elo}</span>
-      </div>`:''}
-      ${m.opp_avg_elo?`<div style="flex:1;padding:8px 14px;font-family:var(--fm);font-size:10px;color:var(--tx3);letter-spacing:1px">
-        OPP ELO <span style="color:var(--tx);font-size:12px;font-family:var(--fh)">${m.opp_avg_elo}</span>
-      </div>`:''}
-    </div>`:'';
-
   el.innerHTML=`<div style="background:var(--bg3);border:1px solid var(--bd);border-top:3px solid ${rc};overflow:hidden">
-    <!-- HEADER -->
-    <div style="display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:20px;padding:14px 18px;background:${rb};border-bottom:1px solid var(--bd)">
+
+    <!-- BIG HEADER -->
+    <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:18px 22px;background:${rb};border-bottom:1px solid var(--bd)">
       <div>
-        <div style="font-family:var(--fm);font-size:9px;letter-spacing:3px;text-transform:uppercase;color:${rc};margin-bottom:2px">${m.result.toUpperCase()}</div>
-        <div style="font-family:var(--fh);font-size:44px;letter-spacing:3px;color:${rc};line-height:1">${m.ours}:${m.theirs}</div>
+        <div style="font-family:var(--fh);font-size:13px;letter-spacing:4px;text-transform:uppercase;color:${rc};margin-bottom:4px">${m.result.toUpperCase()}</div>
+        <div style="font-family:var(--fh);font-size:56px;letter-spacing:4px;color:${rc};line-height:1">${m.ours} : ${m.theirs}</div>
+        ${m.opp_team_name?`<div style="font-family:var(--fm);font-size:11px;color:var(--tx3);margin-top:4px;letter-spacing:1px">vs <span style="color:var(--tx2)">${m.opp_team_name}</span></div>`:''}
       </div>
-      <div>
-        <div style="font-family:var(--fh);font-size:22px;letter-spacing:3px;text-transform:uppercase;margin-bottom:4px">${m.map}</div>
-        <div style="font-family:var(--fm);font-size:11px;color:var(--tx3);letter-spacing:1px">vs <span style="color:var(--tx2)">${m.opp_team_name||'Gegner'}</span></div>
-        ${m.mvp?`<div style="font-family:var(--fm);font-size:10px;color:var(--o);margin-top:3px;letter-spacing:1px">⭐ MVP: ${m.mvp}</div>`:''}
+      <div style="text-align:center;padding:0 24px">
+        <div style="font-family:var(--fh);font-size:28px;letter-spacing:4px;text-transform:uppercase;color:var(--tx);margin-bottom:6px">${m.map}</div>
+        ${m.mvp?`<div style="font-family:var(--fm);font-size:11px;color:var(--o);letter-spacing:1px;margin-bottom:4px">⭐ MVP: ${m.mvp}</div>`:''}
+        <div style="font-family:var(--fm);font-size:10px;color:var(--tx3);letter-spacing:1px">${m.ts||''}</div>
       </div>
       <div style="text-align:right">
-        <div style="font-family:var(--fm);font-size:10px;color:var(--tx3);letter-spacing:1px">${m.ts||''}</div>
-        <div style="font-family:var(--fm);font-size:10px;color:var(--tx3);margin-top:3px">${pl.length} SPIELER</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div style="background:var(--bg4);padding:10px 12px;text-align:center">
+            <div style="font-family:var(--fh);font-size:22px;color:var(--tx)">${totalK}</div>
+            <div style="font-family:var(--fm);font-size:8px;color:var(--tx3);letter-spacing:1.5px;margin-top:2px">KILLS</div>
+          </div>
+          <div style="background:var(--bg4);padding:10px 12px;text-align:center">
+            <div style="font-family:var(--fh);font-size:22px;color:var(--o)">${avgADR}</div>
+            <div style="font-family:var(--fm);font-size:8px;color:var(--tx3);letter-spacing:1.5px;margin-top:2px">Ø ADR</div>
+          </div>
+          <div style="background:var(--bg4);padding:10px 12px;text-align:center">
+            <div style="font-family:var(--fh);font-size:22px;color:var(--yl)">${avgHS}%</div>
+            <div style="font-family:var(--fm);font-size:8px;color:var(--tx3);letter-spacing:1.5px;margin-top:2px">Ø HS%</div>
+          </div>
+          <div style="background:var(--bg4);padding:10px 12px;text-align:center">
+            <div style="font-family:var(--fh);font-size:22px;color:var(--bl)">${totalAces?totalAces+'×ACE':total4k?total4k+'×4K':'—'}</div>
+            <div style="font-family:var(--fm);font-size:8px;color:var(--tx3);letter-spacing:1.5px;margin-top:2px">HIGHLIGHTS</div>
+          </div>
+        </div>
       </div>
     </div>
-    <!-- HALVES -->
-    ${halvesHTML}
+
+    <!-- HALVES + ELO -->
+    ${m.first_half_ours!=null?`<div style="display:flex;border-bottom:1px solid var(--bd)">
+      <div style="flex:1;padding:9px 16px;border-right:1px solid var(--bd);font-family:var(--fm);font-size:9px;letter-spacing:2px;color:var(--tx3);text-transform:uppercase">
+        1st Half &nbsp;<span style="font-family:var(--fh);font-size:18px;color:var(--tx);letter-spacing:2px">${m.first_half_ours} : ${m.first_half_theirs}</span>
+      </div>
+      <div style="flex:1;padding:9px 16px;border-right:1px solid var(--bd);font-family:var(--fm);font-size:9px;letter-spacing:2px;color:var(--tx3);text-transform:uppercase">
+        2nd Half &nbsp;<span style="font-family:var(--fh);font-size:18px;color:var(--tx);letter-spacing:2px">${m.second_half_ours??'?'} : ${m.second_half_theirs??'?'}</span>
+      </div>
+      ${m.team_avg_elo?`<div style="flex:1;padding:9px 16px;border-right:1px solid var(--bd);font-family:var(--fm);font-size:9px;letter-spacing:2px;color:var(--tx3);text-transform:uppercase">
+        Team Elo &nbsp;<span style="font-family:var(--fh);font-size:16px;color:var(--tx)">${m.team_avg_elo}</span>
+      </div>`:''}
+      ${m.opp_avg_elo?`<div style="flex:1;padding:9px 16px;font-family:var(--fm);font-size:9px;letter-spacing:2px;color:var(--tx3);text-transform:uppercase">
+        Gegner Elo &nbsp;<span style="font-family:var(--fh);font-size:16px;color:var(--tx)">${m.opp_avg_elo}</span>
+      </div>`:''}
+    </div>`:''}
+
     <!-- TABLE HEADER -->
-    ${pl.length?`<div style="display:grid;grid-template-columns:110px 50px 50px 50px 50px 50px 50px 50px 1fr;gap:0;padding:6px 14px;background:var(--bg2);border-bottom:1px solid var(--bd)">
-      <div style="font-family:var(--fm);font-size:9px;letter-spacing:2px;color:var(--tx3)">SPIELER</div>
-      <div style="font-family:var(--fm);font-size:9px;letter-spacing:1px;color:var(--tx3);text-align:center">K/D</div>
-      <div style="font-family:var(--fm);font-size:9px;letter-spacing:1px;color:var(--tx3);text-align:center">K</div>
-      <div style="font-family:var(--fm);font-size:9px;letter-spacing:1px;color:var(--tx3);text-align:center">D</div>
-      <div style="font-family:var(--fm);font-size:9px;letter-spacing:1px;color:var(--tx3);text-align:center">A</div>
-      <div style="font-family:var(--fm);font-size:9px;letter-spacing:1px;color:var(--tx3);text-align:center">ADR</div>
-      <div style="font-family:var(--fm);font-size:9px;letter-spacing:1px;color:var(--tx3);text-align:center">HS%</div>
-      <div style="font-family:var(--fm);font-size:9px;letter-spacing:1px;color:var(--tx3);text-align:center">RWS</div>
-      <div style="font-family:var(--fm);font-size:9px;letter-spacing:1px;color:var(--tx3);padding-left:8px">ADR BAR / MULTI-K</div>
+    ${pl.length?`<div style="display:grid;grid-template-columns:1fr 52px 36px 36px 36px 56px 52px 52px 52px 52px;padding:7px 16px;background:var(--bg2);border-bottom:1px solid var(--bd)">
+      <div style="font-family:var(--fm);font-size:8px;letter-spacing:2px;color:var(--tx3);text-transform:uppercase">Spieler</div>
+      <div style="font-family:var(--fm);font-size:8px;letter-spacing:1px;color:var(--tx3);text-align:center;text-transform:uppercase">K/D</div>
+      <div style="font-family:var(--fm);font-size:8px;letter-spacing:1px;color:var(--gr);text-align:center;text-transform:uppercase">K</div>
+      <div style="font-family:var(--fm);font-size:8px;letter-spacing:1px;color:var(--rd);text-align:center;text-transform:uppercase">D</div>
+      <div style="font-family:var(--fm);font-size:8px;letter-spacing:1px;color:var(--tx3);text-align:center;text-transform:uppercase">A</div>
+      <div style="font-family:var(--fm);font-size:8px;letter-spacing:1px;color:var(--o);text-align:center;text-transform:uppercase">ADR</div>
+      <div style="font-family:var(--fm);font-size:8px;letter-spacing:1px;color:var(--yl);text-align:center;text-transform:uppercase">HS%</div>
+      <div style="font-family:var(--fm);font-size:8px;letter-spacing:1px;color:var(--tx3);text-align:center;text-transform:uppercase">RWS</div>
+      <div style="font-family:var(--fm);font-size:8px;letter-spacing:1px;color:var(--tx3);text-align:center;text-transform:uppercase">K/R</div>
+      <div style="font-family:var(--fm);font-size:8px;letter-spacing:1px;color:var(--tx3);text-align:center;text-transform:uppercase">Multi-K</div>
     </div>
-    ${plRows}`:'<div style="padding:16px;text-align:center;font-family:var(--fm);font-size:10px;color:var(--tx3)">Keine Spielerdaten (Screenshot für Stats)</div>'}
+    ${plRows}
+    <!-- TEAM TOTALS -->
+    <div style="display:grid;grid-template-columns:1fr 52px 36px 36px 36px 56px 52px 52px 52px 52px;padding:8px 16px;background:var(--bg2);border-top:1px solid var(--bd)">
+      <div style="font-family:var(--fm);font-size:9px;letter-spacing:2px;color:var(--tx3);text-transform:uppercase">Team gesamt</div>
+      <div></div>
+      <div style="font-family:var(--fh);font-size:14px;color:var(--gr);text-align:center">${totalK}</div>
+      <div style="font-family:var(--fh);font-size:14px;color:var(--rd);text-align:center">${totalD}</div>
+      <div style="font-family:var(--fh);font-size:14px;color:var(--tx2);text-align:center">${totalA}</div>
+      <div style="font-family:var(--fh);font-size:14px;color:var(--o);text-align:center">${avgADR}</div>
+      <div style="font-family:var(--fh);font-size:14px;color:var(--yl);text-align:center">${avgHS}%</div>
+      <div></div><div></div>
+      <div style="font-family:var(--fm);font-size:9px;color:var(--tx3);text-align:center">${totalAces?totalAces+'×ACE ':''} ${total4k?total4k+'×4K ':''} ${total3k?total3k+'×3K':''}</div>
+    </div>`:'<div style="padding:20px;text-align:center;font-family:var(--fm);font-size:10px;color:var(--tx3);letter-spacing:2px">Keine Spielerdaten — Screenshot hochladen</div>'}
   </div>`;
 }
 
 
 function render(){
-  renderHero(); renderStreak(); renderForm(); renderRecent();
+  renderHero(); renderStreak(); renderLastMatch(); renderForm(); renderRecent();
   renderTrophy(); renderHL();  renderLB(); renderMaps();
   renderMatches(); renderPlayers();
   document.getElementById('mCnt').textContent=matches.length;
