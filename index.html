@@ -1096,7 +1096,14 @@ function togMan(){
 // ── INIT ─────────────────────────────────
 // ─── SYNC VIA CORSPROXY ──────────────────────────────────────
 const SHEET = 'https://script.google.com/macros/s/AKfycby8untRQ5dYMqUsZXfSnAhITPceGF3Yds-4rPraDQDNbUYfQrCW6hJ5NtHXxVG60Val/exec';
-const PROXY = 'https://api.allorigins.win/raw?url=';
+const PROXIES = [
+  'https://corsproxy.io/?',
+  'https://api.allorigins.win/raw?url=',
+  'https://proxy.cors.sh/',
+  'https://crossorigin.me/'
+];
+let proxyIdx = 0;
+function getProxy(){ return PROXIES[proxyIdx % PROXIES.length]; }
 
 function saveSheetURL(){
   const v=document.getElementById('sheetUrlInp');
@@ -1112,7 +1119,7 @@ function setSyncSt(m,c){
 
 function sheetURL(params){
   const u=SHEET+(params?'?'+params:'');
-  return PROXY+encodeURIComponent(u);
+  return getProxy()+encodeURIComponent(u);
 }
 
 function fixMatch(m){
@@ -1124,10 +1131,24 @@ function fixMatch(m){
 
 function loadFromSheet(){
   setSyncSt('Lade Daten...','var(--yl)');
-  fetch(sheetURL())
-    .then(r=>r.json())
-    .then(data=>{
+  tryLoadWithProxy(0);
+}
+
+function tryLoadWithProxy(idx){
+  if(idx>=PROXIES.length){
+    setSyncSt('Alle Proxies fehlgeschlagen — zeige lokale Daten','var(--yl)');
+    render(); return;
+  }
+  const u=PROXIES[idx]+encodeURIComponent(SHEET);
+  fetch(u)
+    .then(r=>{
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      return r.text();
+    })
+    .then(txt=>{
+      const data=JSON.parse(txt);
       if(data.matches&&data.matches.length>0){
+        proxyIdx=idx;
         matches=data.matches.map(fixMatch).sort((a,b)=>b.id-a.id);
         save();render();
         setSyncSt('✓ '+matches.length+' Matches geladen','var(--gr)');
@@ -1136,7 +1157,7 @@ function loadFromSheet(){
         render();
       }
     })
-    .catch(e=>{setSyncSt('Ladefehler: '+e.message,'var(--rd)');render();});
+    .catch(()=>tryLoadWithProxy(idx+1));
 }
 
 function syncAdd(match){
