@@ -509,6 +509,29 @@ body::after{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
           <div style="position:relative;height:160px"><canvas id="cScatter"></canvas></div>
         </div>
       </div>
+
+      <!-- Row 6: Trend chart full width -->
+      <div style="background:var(--bg3);border:1px solid var(--bd);padding:14px;margin-bottom:12px">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+          <div style="font-family:var(--fm);font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--tx3)">📈 Entwicklung: Erste 10 vs Letzte 10 Matches</div>
+          <div style="font-family:var(--fm);font-size:10px;color:var(--tx3)">— grün = verbessert, rot = verschlechtert</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div>
+            <div style="font-family:var(--fm);font-size:10px;color:var(--tx3);letter-spacing:1px;margin-bottom:6px;text-transform:uppercase">K/D Trend</div>
+            <div style="position:relative;height:140px"><canvas id="cTrendKD"></canvas></div>
+          </div>
+          <div>
+            <div style="font-family:var(--fm);font-size:10px;color:var(--tx3);letter-spacing:1px;margin-bottom:6px;text-transform:uppercase">ADR Trend</div>
+            <div style="position:relative;height:140px"><canvas id="cTrendADR"></canvas></div>
+          </div>
+        </div>
+        <div id="trendTable" style="margin-top:14px;display:grid;grid-template-columns:repeat(5,1fr);gap:6px"></div>
+      </div>
+
+      <!-- dummy closing div replaced -->
+      <div style="display:none">
+      </div>
     </div>
 
   </div>
@@ -1613,6 +1636,103 @@ function renderCharts(){
         }
       }]
     });
+  }
+
+  // ── 11. TREND CHART: First 10 vs Last 10 ────────────────────────────────
+  ['cTrendKD','cTrendADR'].forEach(id=>destroyChart(id));
+  const trendKDCvs = document.getElementById('cTrendKD');
+  const trendADRCvs = document.getElementById('cTrendADR');
+  const trendTable = document.getElementById('trendTable');
+
+  if(sortedM.length >= 6){
+    const half = Math.min(10, Math.floor(sortedM.length/2));
+    const firstBlock = sortedM.slice(0, half);
+    const lastBlock = sortedM.slice(-half);
+
+    function blockStats(block, playerName, metric){
+      const vals = block.map(m=>{
+        const pl=(m.playerStats||[]).find(x=>x.name===playerName&&x.team==='ours');
+        if(!pl) return null;
+        if(metric==='kd') return pl.kd||pl.kills/Math.max(pl.deaths,1)||0;
+        if(metric==='adr') return pl.adr||0;
+        return null;
+      }).filter(v=>v!=null);
+      return vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : null;
+    }
+
+    const trendData = PLAYERS.map((p,pi)=>({
+      name: p,
+      color: PCOLORS[pi],
+      colorA: PCOLORS_A[pi],
+      kdFirst: blockStats(firstBlock, p, 'kd'),
+      kdLast: blockStats(lastBlock, p, 'kd'),
+      adrFirst: blockStats(firstBlock, p, 'adr'),
+      adrLast: blockStats(lastBlock, p, 'adr'),
+    })).map(d=>({
+      ...d,
+      kdDelta: d.kdFirst!=null&&d.kdLast!=null ? parseFloat((d.kdLast-d.kdFirst).toFixed(3)) : null,
+      adrDelta: d.adrFirst!=null&&d.adrLast!=null ? parseFloat((d.adrLast-d.adrFirst).toFixed(1)) : null,
+    }));
+
+    const barBG = deltas => deltas.map(d=>d>0?'rgba(46,255,138,.75)':d<0?'rgba(255,61,90,.7)':'rgba(100,100,120,.4)');
+    const barBorder = deltas => deltas.map(d=>d>0?'#2eff8a':d<0?'#ff3d5a':'#555');
+
+    const kdDeltas = trendData.map(d=>d.kdDelta);
+    const adrDeltas = trendData.map(d=>d.adrDelta);
+
+    const trendOpts = (unit='')=>({
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:d=>{
+        const v=d.parsed.y; return `${d.label}: ${v>0?'+':''}${v}${unit}`;
+      }}}},
+      scales:{
+        x:{ticks:{color:'#ccc',font:{size:11,weight:'bold'}},grid:{display:false},border:{color:'rgba(42,42,50,.4)'}},
+        y:{ticks:{color:'#9898a8',font:{size:10}},grid:{color:'rgba(42,42,50,.5)'},border:{color:'rgba(42,42,50,.4)'},
+          afterDataLimits(axis){const m=Math.max(Math.abs(axis.min),Math.abs(axis.max));axis.min=-m*1.3;axis.max=m*1.3;}}
+      }
+    });
+
+    if(trendKDCvs){
+      _charts['cTrendKD'] = new Chart(trendKDCvs,{type:'bar',
+        data:{labels:PLAYERS,datasets:[{
+          data:kdDeltas,
+          backgroundColor:barBG(kdDeltas),
+          borderColor:barBorder(kdDeltas),
+          borderWidth:1,borderRadius:3
+        }]},
+        options:trendOpts()
+      });
+    }
+
+    if(trendADRCvs){
+      _charts['cTrendADR'] = new Chart(trendADRCvs,{type:'bar',
+        data:{labels:PLAYERS,datasets:[{
+          data:adrDeltas,
+          backgroundColor:barBG(adrDeltas),
+          borderColor:barBorder(adrDeltas),
+          borderWidth:1,borderRadius:3
+        }]},
+        options:trendOpts()
+      });
+    }
+
+    // Trend summary cards
+    if(trendTable){
+      trendTable.innerHTML = trendData.map(d=>{
+        const kdDir = d.kdDelta>0.05?'↑':d.kdDelta<-0.05?'↓':'→';
+        const adrDir = d.adrDelta>3?'↑':d.adrDelta<-3?'↓':'→';
+        const kdC = d.kdDelta>0.05?'var(--gr)':d.kdDelta<-0.05?'var(--rd)':'var(--tx3)';
+        const adrC = d.adrDelta>3?'var(--gr)':d.adrDelta<-3?'var(--rd)':'var(--tx3)';
+        return `<div style="background:var(--bg2);border:1px solid var(--bd);padding:10px 12px;border-top:3px solid ${d.color}">
+          <div style="font-family:var(--fh);font-size:16px;color:${d.color};margin-bottom:6px">${d.name}</div>
+          <div style="font-family:var(--fm);font-size:10px;color:var(--tx3);margin-bottom:3px">K/D</div>
+          <div style="font-family:var(--fh);font-size:18px;color:${kdC}">${kdDir} ${d.kdDelta!=null?(d.kdDelta>0?'+':'')+d.kdDelta:'—'}</div>
+          <div style="font-family:var(--fm);font-size:10px;color:var(--tx3);margin-top:5px;margin-bottom:3px">ADR</div>
+          <div style="font-family:var(--fh);font-size:18px;color:${adrC}">${adrDir} ${d.adrDelta!=null?(d.adrDelta>0?'+':'')+d.adrDelta:'—'}</div>
+          <div style="font-family:var(--fm);font-size:9px;color:var(--tx3);margin-top:6px">M1–${half} vs M${sortedM.length-half+1}–${sortedM.length}</div>
+        </div>`;
+      }).join('');
+    }
   }
 }
 
