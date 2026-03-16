@@ -21,7 +21,7 @@
   --fm:'Share Tech Mono',monospace;
 }
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{height:100%;overflow:hidden}
+html,body{height:100%}
 body{background:var(--bg);color:var(--tx);font-family:var(--fu);}
 body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
   background:radial-gradient(ellipse 80% 60% at 50% -10%,rgba(255,85,0,.06),transparent),
@@ -65,9 +65,9 @@ body::after{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 .ticker-sep{color:rgba(0,0,0,.4);padding:0 8px}
 
 /* ── MAIN ──────────────────────────────── */
-.main{flex:1;overflow:hidden;position:relative}
-.page{position:absolute;inset:0;overflow-y:auto;display:none;animation:pgIn .2s ease}
-.page.on{display:block}
+.main{flex:1;overflow-y:auto}
+.page{display:none;animation:pgIn .2s ease}
+.page.on{display:block;min-height:100vh}
 @keyframes pgIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
 .page::-webkit-scrollbar{width:3px}
 .page::-webkit-scrollbar-track{background:transparent}
@@ -75,10 +75,10 @@ body::after{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 
 /* ── OVERVIEW LAYOUT ──────────────────────────────── */
 #pg-overview{padding:0}
-.ov-grid{display:grid;grid-template-columns:320px 1fr 280px;grid-template-rows:auto 1fr;height:100%;overflow:hidden}
+.ov-grid{display:grid;grid-template-columns:280px 1fr 260px;align-items:start;gap:0}
 
 /* LEFT PANEL */
-.ov-left{grid-row:1/3;display:flex;flex-direction:column;border-right:1px solid var(--bd2);overflow-y:auto;overflow-x:hidden}
+.ov-left{display:flex;flex-direction:column;border-right:1px solid var(--bd2);overflow-x:hidden}
 .ov-left::-webkit-scrollbar{width:2px}
 .ov-left::-webkit-scrollbar-thumb{background:var(--bd3)}
 
@@ -112,7 +112,7 @@ body::after{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 .fd.emp{background:var(--bg4);border:1px solid var(--bd);color:var(--tx3)}
 
 /* RECENT MATCHES MINI */
-.rec-sec{padding:14px 22px;flex-shrink:0;flex:1;overflow-y:auto;min-height:0}
+.rec-sec{padding:14px 22px}
 .rm{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(30,30,46,.8)}
 .rm:last-child{border-bottom:none}
 .rm-bar{width:3px;height:30px;flex-shrink:0}
@@ -124,12 +124,12 @@ body::after{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 .rm-del:hover{color:var(--rd)}
 
 /* CENTER PANEL */
-.ov-center{grid-row:1/3;border-right:1px solid var(--bd2);display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;padding:20px}
+.ov-center{border-right:1px solid var(--bd2);display:flex;flex-direction:column;padding:20px}
 .ov-center::-webkit-scrollbar{width:3px}
 .ov-center::-webkit-scrollbar-thumb{background:var(--bd3)}
 
 /* RIGHT PANEL */
-.ov-right{grid-row:1/3;display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;padding:20px 18px}
+.ov-right{display:flex;flex-direction:column;padding:20px 18px;overflow-x:hidden}
 .ov-right::-webkit-scrollbar{width:0}
 
 /* LAST MATCH HIGHLIGHT */
@@ -1560,20 +1560,58 @@ function renderCharts(){
   destroyChart('cScatter');
   const scCvs = document.getElementById('cScatter');
   if(scCvs){
+    // One dataset per player so each dot has its own color + label
     const scDatasets = PLAYERS.map((p,pi)=>{
-      if(!ps[p]||!ps[p].games)return{label:p,data:[],backgroundColor:PCOLORS_A[pi],pointRadius:8,pointHoverRadius:10};
+      if(!ps[p]||!ps[p].games)return null;
       const kd = ps[p].kills/Math.max(ps[p].deaths,1);
       const adr = ps[p].adr/ps[p].games;
-      return{label:p,data:[{x:parseFloat(adr.toFixed(1)),y:parseFloat(kd.toFixed(2))}],backgroundColor:PCOLORS[pi],borderColor:PCOLORS[pi],pointRadius:8,pointHoverRadius:10,borderWidth:2};
-    });
+      return{
+        label:p,
+        data:[{x:parseFloat(adr.toFixed(1)),y:parseFloat(kd.toFixed(2)),name:p}],
+        backgroundColor:PCOLORS[pi],
+        borderColor:'#000',
+        borderWidth:1,
+        pointRadius:10,
+        pointHoverRadius:12
+      };
+    }).filter(Boolean);
+
     _charts['cScatter'] = new Chart(scCvs,{type:'scatter',
       data:{datasets:scDatasets},
-      options:{...lineOpts,
+      options:{
+        responsive:true,maintainAspectRatio:false,
+        plugins:{
+          legend:{display:false},
+          tooltip:{callbacks:{label:d=>`${d.dataset.label}  ADR: ${d.parsed.x}  K/D: ${d.parsed.y}`}},
+          // Draw player name next to each dot
+          afterDraw: undefined
+        },
         scales:{
-          x:{...darkScales().x,title:{display:true,text:'Ø ADR',color:'#9898a8',font:{size:10}}},
-          y:{...darkScales().y,title:{display:true,text:'K/D',color:'#9898a8',font:{size:10}}}
+          x:{ticks:{color:'#9898a8',font:{size:10}},grid:{color:'rgba(42,42,50,.6)'},border:{color:'rgba(42,42,50,.6)'},title:{display:true,text:'← weniger Schaden      Ø ADR      mehr Schaden →',color:'#666',font:{size:10}}},
+          y:{ticks:{color:'#9898a8',font:{size:10}},grid:{color:'rgba(42,42,50,.6)'},border:{color:'rgba(42,42,50,.6)'},title:{display:true,text:'K/D',color:'#666',font:{size:10}}}
         }
-      }
+      },
+      plugins:[{
+        id:'playerLabels',
+        afterDatasetsDraw(chart){
+          const ctx=chart.ctx;
+          chart.data.datasets.forEach((ds,di)=>{
+            if(!ds.data.length)return;
+            const meta=chart.getDatasetMeta(di);
+            meta.data.forEach((pt,i)=>{
+              const name=ds.label;
+              const color=ds.backgroundColor;
+              ctx.save();
+              ctx.font='bold 11px "Share Tech Mono"';
+              ctx.fillStyle=color;
+              ctx.shadowColor='rgba(0,0,0,.8)';
+              ctx.shadowBlur=4;
+              ctx.fillText(name, pt.x+10, pt.y+4);
+              ctx.restore();
+            });
+          });
+        }
+      }]
     });
   }
 }
